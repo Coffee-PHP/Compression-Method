@@ -1,5 +1,7 @@
 # Coffee PHP - Compression Method
 
+![Build](https://github.com/Coffee-PHP/Compression-Method/workflows/Build/badge.svg)
+
 Provides interfaces for compression method classes to implement.
 
 ```

@@ -25,11 +25,8 @@ declare(strict_types=1);
 
 namespace CoffeePhp\CompressionMethod;
 
-use CoffeePhp\FileSystem\Contract\Data\Path\PathNavigatorInterface;
-use CoffeePhp\FileSystem\Contract\FileManagerInterface;
-use CoffeePhp\FileSystem\Data\Path\PathNavigator;
-use CoffeePhp\FileSystem\Enum\PathConflictStrategy;
-
+use function file_exists;
+use function pathinfo;
 use function str_ends_with;
 use function strlen;
 use function substr;
@@ -42,85 +39,55 @@ use function substr;
  */
 abstract class AbstractCompressionMethod
 {
-    protected FileManagerInterface $fileManager;
-    private PathConflictStrategy $pathConflictStrategy;
-
     /**
-     * AbstractPathCompressionMethod constructor.
-     * @param FileManagerInterface $fileManager
-     * @param PathConflictStrategy|null $pathConflictStrategy
-     * @SuppressWarnings(PHPMD.StaticAccess)
+     * A workaround mechanism for retrieving an available path
+     * with a file/directory name similar to the given $expectedDestination
      */
-    public function __construct(
-        FileManagerInterface $fileManager,
-        ?PathConflictStrategy $pathConflictStrategy = null
-    ) {
-        $this->fileManager = $fileManager;
-        $this->pathConflictStrategy = $pathConflictStrategy ?? PathConflictStrategy::WORKAROUND();
-    }
-
-    /**
-     * Create an empty file and delete it before
-     * returning, this will give us an absolute path
-     * that always exists.
-     *
-     * @param string $path
-     * @return PathNavigatorInterface
-     */
-    final protected function getAvailablePath(string $path): PathNavigatorInterface
+    final protected function getAvailablePath(string $expectedDestination): string
     {
-        $availableFile = $this->fileManager->createFile(
-            new PathNavigator($path),
-            $this->pathConflictStrategy
-        );
-        $availableFile->delete();
-        return $availableFile->getPath();
+        if (!file_exists($expectedDestination)) {
+            return $expectedDestination;
+        }
+        $pathInfo = pathinfo($expectedDestination);
+        $filename = $pathInfo['filename'];
+        $extension = isset($pathInfo['extension']) ? '.' . $pathInfo['extension'] : '';
+        $index = 0;
+        do {
+            ++$index;
+            $availablePath = "{$filename}_{$index}{$extension}";
+        } while (file_exists($availablePath));
+        return $availablePath;
     }
 
     /**
      * Get the full path.
-     *
-     * @param string $path
-     * @param string $extension
-     * @return string
      */
     final protected function getFullPath(string $path, string $extension): string
     {
-        return "{$path}{$this->getExtensionSuffix($extension)}";
+        return "$path.$extension";
     }
 
     /**
      * Get whether the path ends with the given extension.
-     *
-     * @param string $path
-     * @param string $extension
-     * @return bool
      */
     final protected function isFullPath(string $path, string $extension): bool
     {
-        return str_ends_with($path, $this->getExtensionSuffix($extension));
+        return str_ends_with($path, ".$extension");
     }
 
     /**
      * Get the original path (without the suffix).
-     *
-     * @param string $path
-     * @param string $extension
-     * @return string
      */
     final protected function getOriginalPath(string $path, string $extension): string
     {
-        return substr($path, 0, -strlen($this->getExtensionSuffix($extension)));
+        return substr($path, 0, -strlen(".$extension"));
     }
 
     /**
      * Get the suffix for the given extension.
-     *
-     * @param string $extension
-     * @return string
      */
     final protected function getExtensionSuffix(string $extension): string
     {
-        return ".{$extension}";
+        return ".$extension";
     }
 }
